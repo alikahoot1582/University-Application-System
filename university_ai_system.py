@@ -19,37 +19,14 @@ st.caption("Structured like real institutions • AI advises, humans decide")
 # 🌍 UNIVERSITY MASTER LIST
 # =====================================================
 UNIVERSITIES = [
-    # 🇯🇵 Japan
     "University of Tokyo", "Kyoto University", "Osaka University",
-    "Tohoku University", "Keio University", "Waseda University",
-
-    # 🇰🇷 South Korea
-    "Seoul National University", "KAIST", "POSTECH",
-    "Yonsei University", "Korea University",
-
-    # 🇨🇳 China
+    "Seoul National University", "KAIST",
     "Tsinghua University", "Peking University",
-    "Fudan University", "Shanghai Jiao Tong University",
-
-    # 🇺🇸 USA
     "MIT", "Harvard University", "Stanford University",
-    "NYU", "NYU Shanghai", "UC Berkeley", "UCLA",
-
-    # 🇬🇧 UK
     "University of Oxford", "University of Cambridge",
-    "Imperial College London", "UCL", "King's College London",
-
-    # 🇦🇺 Australia
-    "University of Melbourne", "Australian National University",
-    "University of Sydney", "Monash University",
-
-    # 🇩🇪 Germany
-    "Technical University of Munich", "Heidelberg University", "RWTH Aachen",
-
-    # 🇵🇰 Pakistan
-    "NUMS", "NUML", "Riphah International University",
-
-    # 🌍 Other
+    "University of Melbourne",
+    "Technical University of Munich",
+    "NUMS", "NUML",
     "Other / Partner University"
 ]
 
@@ -120,7 +97,6 @@ if menu == "Dashboard":
 # =====================================================
 elif menu == "Student Application Portal":
     st.subheader("🎓 University Application Portal")
-    st.caption("Students apply. No decisions made here.")
 
     with st.form("application_form"):
         name = st.text_input("Full Name")
@@ -134,7 +110,7 @@ elif menu == "Student Application Portal":
         applications.loc[len(applications)] = [
             new_id, name, university, gpa, test_score, "Pending"
         ]
-        st.success("✅ Application submitted.")
+        st.success("✅ Application submitted")
 
 # =====================================================
 # ADMIN – APPLICATION REVIEW
@@ -153,7 +129,7 @@ elif menu == "Admin – Applications Review":
             applications.loc[
                 applications["applicant_id"] == applicant_id, "status"
             ] = decision
-            st.success(f"Application {decision}ed.")
+            st.success(f"Application {decision}ed")
 
 # =====================================================
 # ADMISSIONS AI (SAFE)
@@ -165,7 +141,7 @@ elif menu == "Admissions AI":
     y = (applications["status"] == "Accept").astype(int)
 
     if y.nunique() < 2:
-        st.warning("⚠️ AI requires both ACCEPTED and REJECTED cases.")
+        st.warning("AI needs at least one ACCEPT and one REJECT decision.")
     else:
         model = RandomForestClassifier(random_state=42)
         model.fit(X, y)
@@ -175,71 +151,7 @@ elif menu == "Admissions AI":
 
         probs = model.predict_proba([[gpa, test_score]])[0]
         accept_idx = list(model.classes_).index(1)
+
         st.success(f"AI Acceptance Likelihood: {probs[accept_idx] * 100:.2f}%")
 
-# =====================================================
-# STUDENT MANAGEMENT
-# =====================================================
-elif menu == "Student Management":
-    st.subheader("👨‍🎓 Student Information System")
-    st.dataframe(students, use_container_width=True)
-
-# =====================================================
-# STUDENT RISK PREDICTION
-# =====================================================
-elif menu == "Student Risk Prediction":
-    st.subheader("⚠️ At-Risk Student Detection")
-
-    X = students[["attendance", "grades", "discipline_score", "engagement"]]
-    y = (students["grades"] < 50).astype(int)
-
-    if y.nunique() < 2:
-        st.warning("Not enough variance for risk prediction.")
-    else:
-        model = RandomForestClassifier(random_state=42)
-        model.fit(X, y)
-
-        sid = st.selectbox("Select Student ID", students["student_id"])
-        row = students.loc[students["student_id"] == sid, X.columns]
-
-        risk = model.predict(row)[0]
-        st.error("⚠️ AT RISK") if risk else st.success("✅ Normal")
-
-# =====================================================
-# RESOURCE OPTIMIZATION
-# =====================================================
-elif menu == "Resource Optimization":
-    st.subheader("📈 Course Demand Forecast")
-
-    X = np.arange(len(courses)).reshape(-1, 1)
-    y = courses["current_enrollment"]
-
-    model = RandomForestRegressor(random_state=42)
-    model.fit(X, y)
-
-    courses["forecasted_enrollment"] = model.predict(X).astype(int)
-    st.dataframe(courses, use_container_width=True)
-
-# =====================================================
-# PLACEMENT PREDICTION
-# =====================================================
-elif menu == "Placement Prediction":
-    st.subheader("💼 Placement Probability Engine")
-
-    X = students[["grades", "engagement", "attendance"]]
-    y = students["placed"]
-
-    if y.nunique() < 2:
-        st.warning("Not enough data for placement prediction.")
-    else:
-        model = RandomForestClassifier(random_state=42)
-        model.fit(X, y)
-
-        grade = st.slider("Grades", 40, 100, 75)
-        engagement = st.slider("Engagement", 1, 10, 7)
-        attendance = st.slider("Attendance (%)", 50, 100, 85)
-
-        probs = model.predict_proba([[grade, engagement, attendance]])[0]
-        place_idx = list(model.classes_).index(1)
-
-        st.success(f"Placement Probability: {probs[place_idx] * 100:.2f}%")
+# =================================
