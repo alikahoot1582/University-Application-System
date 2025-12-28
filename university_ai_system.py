@@ -10,10 +10,7 @@ import numpy as np
 from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
 
 # ------------------ CONFIG ------------------
-st.set_page_config(
-    page_title="University AI System",
-    layout="wide"
-)
+st.set_page_config(page_title="University AI System", layout="wide")
 
 st.title("🎓 Global University Application & Management System")
 st.caption("Structured like real institutions • AI advises, humans decide")
@@ -27,21 +24,24 @@ UNIVERSITIES = [
     "Tohoku University", "Keio University", "Waseda University",
 
     # 🇰🇷 South Korea
-    "Seoul National University", "KAIST", "POSTECH", "Yonsei University", "Korea University",
+    "Seoul National University", "KAIST", "POSTECH",
+    "Yonsei University", "Korea University",
 
     # 🇨🇳 China
-    "Tsinghua University", "Peking University", "Fudan University", "Shanghai Jiao Tong University",
+    "Tsinghua University", "Peking University",
+    "Fudan University", "Shanghai Jiao Tong University",
 
     # 🇺🇸 USA
-    "MIT", "Harvard University", "Stanford University", "NYU", "NYU Shanghai",
-    "UC Berkeley", "UCLA",
+    "MIT", "Harvard University", "Stanford University",
+    "NYU", "NYU Shanghai", "UC Berkeley", "UCLA",
 
     # 🇬🇧 UK
-    "University of Oxford", "University of Cambridge", "Imperial College London",
-    "UCL", "King's College London",
+    "University of Oxford", "University of Cambridge",
+    "Imperial College London", "UCL", "King's College London",
 
     # 🇦🇺 Australia
-    "University of Melbourne", "Australian National University", "University of Sydney", "Monash University",
+    "University of Melbourne", "Australian National University",
+    "University of Sydney", "Monash University",
 
     # 🇩🇪 Germany
     "Technical University of Munich", "Heidelberg University", "RWTH Aachen",
@@ -49,7 +49,7 @@ UNIVERSITIES = [
     # 🇵🇰 Pakistan
     "NUMS", "NUML", "Riphah International University",
 
-    # 🌍 Catch-all
+    # 🌍 Other
     "Other / Partner University"
 ]
 
@@ -121,55 +121,61 @@ if menu == "Dashboard":
 elif menu == "Student Application Portal":
     st.subheader("🎓 University Application Portal")
     st.caption("Students apply. No decisions made here.")
+
     with st.form("application_form"):
         name = st.text_input("Full Name")
         university = st.selectbox("Target University", UNIVERSITIES)
         gpa = st.slider("GPA", 2.0, 4.0, 3.0)
         test_score = st.slider("Test Score", 900, 1600, 1100)
         submit = st.form_submit_button("Submit Application")
-    if submit:
+
+    if submit and name:
         new_id = applications["applicant_id"].max() + 1
-        applications.loc[len(applications)] = {
-            "applicant_id": new_id,
-            "name": name,
-            "target_university": university,
-            "gpa": gpa,
-            "test_score": test_score,
-            "status": "Pending"
-        }
-        st.success("✅ Application submitted. Await admin decision.")
+        applications.loc[len(applications)] = [
+            new_id, name, university, gpa, test_score, "Pending"
+        ]
+        st.success("✅ Application submitted.")
 
 # =====================================================
 # ADMIN – APPLICATION REVIEW
 # =====================================================
 elif menu == "Admin – Applications Review":
     st.subheader("🛡️ Admin Application Review Panel")
-    st.caption("Authority lives here. AI advises. Admin decides.")
+
     pending = applications[applications["status"] == "Pending"]
     st.dataframe(pending, use_container_width=True)
+
     if not pending.empty:
         applicant_id = st.selectbox("Select Applicant ID", pending["applicant_id"])
         decision = st.radio("Final Decision", ["Accept", "Reject"])
+
         if st.button("Finalize Decision"):
-            applications.loc[applications["applicant_id"] == applicant_id, "status"] = decision
-            st.success(f"Application {decision}ed successfully.")
-    else:
-        st.info("No pending applications.")
+            applications.loc[
+                applications["applicant_id"] == applicant_id, "status"
+            ] = decision
+            st.success(f"Application {decision}ed.")
 
 # =====================================================
-# ADMISSIONS AI (ADVISORY ONLY)
+# ADMISSIONS AI (SAFE)
 # =====================================================
 elif menu == "Admissions AI":
     st.subheader("🧠 Admissions AI – Advisory Engine")
-    st.caption("This does NOT auto-accept. It informs judgment.")
+
     X = applications[["gpa", "test_score"]]
     y = (applications["status"] == "Accept").astype(int)
-    model = RandomForestClassifier(random_state=42)
-    model.fit(X, y)
-    gpa = st.slider("Applicant GPA", 2.0, 4.0, 3.2)
-    test_score = st.slider("Test Score", 900, 1600, 1200)
-    prob = model.predict_proba([[gpa, test_score]])[0][1]
-    st.success(f"AI Acceptance Likelihood: {prob * 100:.2f}%")
+
+    if y.nunique() < 2:
+        st.warning("⚠️ AI requires both ACCEPTED and REJECTED cases.")
+    else:
+        model = RandomForestClassifier(random_state=42)
+        model.fit(X, y)
+
+        gpa = st.slider("Applicant GPA", 2.0, 4.0, 3.2)
+        test_score = st.slider("Test Score", 900, 1600, 1200)
+
+        probs = model.predict_proba([[gpa, test_score]])[0]
+        accept_idx = list(model.classes_).index(1)
+        st.success(f"AI Acceptance Likelihood: {probs[accept_idx] * 100:.2f}%")
 
 # =====================================================
 # STUDENT MANAGEMENT
@@ -183,27 +189,34 @@ elif menu == "Student Management":
 # =====================================================
 elif menu == "Student Risk Prediction":
     st.subheader("⚠️ At-Risk Student Detection")
+
     X = students[["attendance", "grades", "discipline_score", "engagement"]]
     y = (students["grades"] < 50).astype(int)
-    model = RandomForestClassifier(random_state=42)
-    model.fit(X, y)
-    sid = st.selectbox("Select Student ID", students["student_id"])
-    row = students[students["student_id"] == sid][X.columns]
-    risk = model.predict(row)[0]
-    if risk:
-        st.error("⚠️ Student is AT RISK")
+
+    if y.nunique() < 2:
+        st.warning("Not enough variance for risk prediction.")
     else:
-        st.success("✅ Student is Performing Normally")
+        model = RandomForestClassifier(random_state=42)
+        model.fit(X, y)
+
+        sid = st.selectbox("Select Student ID", students["student_id"])
+        row = students.loc[students["student_id"] == sid, X.columns]
+
+        risk = model.predict(row)[0]
+        st.error("⚠️ AT RISK") if risk else st.success("✅ Normal")
 
 # =====================================================
 # RESOURCE OPTIMIZATION
 # =====================================================
 elif menu == "Resource Optimization":
     st.subheader("📈 Course Demand Forecast")
+
     X = np.arange(len(courses)).reshape(-1, 1)
     y = courses["current_enrollment"]
+
     model = RandomForestRegressor(random_state=42)
     model.fit(X, y)
+
     courses["forecasted_enrollment"] = model.predict(X).astype(int)
     st.dataframe(courses, use_container_width=True)
 
@@ -212,13 +225,21 @@ elif menu == "Resource Optimization":
 # =====================================================
 elif menu == "Placement Prediction":
     st.subheader("💼 Placement Probability Engine")
+
     X = students[["grades", "engagement", "attendance"]]
     y = students["placed"]
-    model = RandomForestClassifier(random_state=42)
-    model.fit(X, y)
-    grade = st.slider("Grades", 40, 100, 75)
-    engagement = st.slider("Engagement", 1, 10, 7)
-    attendance = st.slider("Attendance (%)", 50, 100, 85)
-    prob = model.predict_proba([[grade, engagement, attendance]])[0][1]
-    st.success(f"Placement Probability: {prob * 100:.2f}%")
 
+    if y.nunique() < 2:
+        st.warning("Not enough data for placement prediction.")
+    else:
+        model = RandomForestClassifier(random_state=42)
+        model.fit(X, y)
+
+        grade = st.slider("Grades", 40, 100, 75)
+        engagement = st.slider("Engagement", 1, 10, 7)
+        attendance = st.slider("Attendance (%)", 50, 100, 85)
+
+        probs = model.predict_proba([[grade, engagement, attendance]])[0]
+        place_idx = list(model.classes_).index(1)
+
+        st.success(f"Placement Probability: {probs[place_idx] * 100:.2f}%")
