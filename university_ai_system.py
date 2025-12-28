@@ -168,3 +168,4 @@ elif menu == "Admissions AI (Advisory)":
             f"Estimated Acceptance Likelihood: "
             f"{probs[accept_idx] * 100:.2f}%"
         )
+
